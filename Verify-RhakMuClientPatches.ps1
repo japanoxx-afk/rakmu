@@ -1,6 +1,8 @@
 param(
     [string]$ExePath = "C:\Program Files (x86)\TriggerSoft\RhakMu\Rhakmu.exe",
-    [switch]$AllowOriginalBattleStartSync
+    [switch]$AllowOriginalBattleStartSync,
+    [ValidateSet("Zero", "Preserve", "Any")]
+    [string]$BattleStartSeedMode = "Zero"
 )
 
 $ErrorActionPreference = "Stop"
@@ -63,14 +65,19 @@ function Test-ExactPatch([byte[]]$Bytes, [uint32]$Va, [byte[]]$Expected, [string
     }
 }
 
-function Test-BattleStartPatch([byte[]]$Bytes, [uint32]$Va, [byte[]]$ExpectedPatch, [byte[]]$OriginalBytes, [string]$Name) {
+function Test-BattleStartPatch([byte[]]$Bytes, [uint32]$Va, [byte[]]$SeedZeroPatch, [byte[]]$SeedPreservePatch, [byte[]]$OriginalBytes, [string]$Name) {
     $off = Convert-VaToFileOffset $Bytes $Va
-    $patched = Test-BytesEqual $Bytes $off $ExpectedPatch
+    $seedZero = Test-BytesEqual $Bytes $off $SeedZeroPatch
+    $seedPreserve = Test-BytesEqual $Bytes $off $SeedPreservePatch
     $original = Test-BytesEqual $Bytes $off $OriginalBytes
-    $ok = $patched -or ($AllowOriginalBattleStartSync -and $original)
+    $patched = switch ($BattleStartSeedMode) {
+        "Zero" { $seedZero }
+        "Preserve" { $seedPreserve }
+        "Any" { $seedZero -or $seedPreserve }
+    }
     [pscustomobject]@{
         Name = $Name
-        Status = if ($patched) { "OK" } elseif ($AllowOriginalBattleStartSync -and $original) { "ORIGINAL" } else { "MISSING" }
+        Status = if ($patched -and $seedZero) { "OK-ZERO" } elseif ($patched -and $seedPreserve) { "OK-PRESERVE" } elseif ($AllowOriginalBattleStartSync -and $original) { "ORIGINAL" } else { "MISSING" }
         VA = ("0x{0:X8}" -f $Va)
     }
 }
@@ -82,7 +89,13 @@ if (-not (Test-Path -LiteralPath $ExePath)) {
 $bytes = [IO.File]::ReadAllBytes($ExePath)
 $checks = New-Object System.Collections.Generic.List[object]
 
-$battleStartPatch = [byte[]]@(
+$battleStartSeedZeroPatch = [byte[]]@(
+    0xC6,0x05,0x74,0xFC,0x6D,0x00,0x05,
+    0x33,0xC0,0xA3,0x70,0x09,0x6E,0x00,
+    0x5F,0x5E,0x5B,0x8B,0xE5,0x5D,0xC3,
+    0x90,0x90
+)
+$battleStartSeedPreservePatch = [byte[]]@(
     0xC6,0x05,0x74,0xFC,0x6D,0x00,0x05,
     0x5F,0x5E,0x5B,0x8B,0xE5,0x5D,0xC3,
     0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90
@@ -95,7 +108,7 @@ $battleStartOriginal = [byte[]]@(
     0x5F,0x5E,0x5B,0x8B,0xE5,0x5D,0xC3
 )
 
-[void]$checks.Add((Test-BattleStartPatch $bytes 0x0044D2E2 $battleStartPatch $battleStartOriginal "Battle start countdown sync"))
+[void]$checks.Add((Test-BattleStartPatch $bytes 0x0044D2E2 $battleStartSeedZeroPatch $battleStartSeedPreservePatch $battleStartOriginal "Battle start countdown sync"))
 [void]$checks.Add((Test-Nops $bytes 0x0041E2AE 12 "CScenChannel scalar delete guard"))
 [void]$checks.Add((Test-Nops $bytes 0x0041EF0E 12 "CScenGuild scalar delete guard"))
 [void]$checks.Add((Test-Nops $bytes 0x00421B7E 12 "CScenRanking scalar delete guard"))
@@ -125,7 +138,7 @@ $panelMenuGuardPatch = [byte[]]@(
 
 $checks | Format-Table -AutoSize
 
-if (($checks | Where-Object { $_.Status -ne "OK" }).Count -gt 0) {
+if (($checks | Where-Object { $_.Status -notlike "OK*" -and $_.Status -ne "ORIGINAL" }).Count -gt 0) {
     Write-Host ""
     Write-Host "One or more client patches are missing. Run the patch scripts on this PC, then verify again." -ForegroundColor Yellow
     exit 1

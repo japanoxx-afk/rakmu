@@ -55,7 +55,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Install-RhakMuClientPatche
 마지막 줄이 아래처럼 나와야 합니다.
 
 ```text
-RhakMu patch bundle version: 2026-06-07.0215
+RhakMu patch bundle version: 2026-06-08.0010
 ```
 
 ## 2. 양쪽 PC에서 캡처 시작
@@ -141,6 +141,29 @@ After that, restore the normal patched mode on both PCs:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Install-RhakMuClientPatches.ps1
+```
+
+## Seed-Zero And Variant Start Test
+
+The current diagnostic default uses `BattleStartSeedMode Zero`, which sets the
+guest countdown state and initializes the start seed to `0`.
+
+Run this on both PCs before launching RhakMu:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Install-RhakMuClientPatches.ps1 -BattleStartSeedMode Zero
+```
+
+Then start the server PC with all known start variants:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Start-RhakMuStableServer.ps1 -GameStartSyncMode original-plus-variants
+```
+
+or:
+
+```powershell
+.\Run-RhakMuStableServerVariants.bat
 ```
 
 또는:

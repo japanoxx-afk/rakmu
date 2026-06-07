@@ -40,7 +40,9 @@ pop ebp
 ret
 ```
 
-- It intentionally no longer writes `0x006E0970 = 0`.
+- The current diagnostic default writes `0x006E0970 = 0` again, because the
+  seed-preserve patch did not trigger guest countdown. The installer also
+  supports `-BattleStartSeedMode Preserve` for A/B testing.
 
 Please analyze:
 

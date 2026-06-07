@@ -1,5 +1,7 @@
 param(
-    [string]$ExePath = "C:\Program Files (x86)\TriggerSoft\RhakMu\Rhakmu.exe"
+    [string]$ExePath = "C:\Program Files (x86)\TriggerSoft\RhakMu\Rhakmu.exe",
+    [ValidateSet("Zero", "Preserve")]
+    [string]$SeedMode = "Zero"
 )
 
 $ErrorActionPreference = "Stop"
@@ -48,9 +50,10 @@ $bytes = [IO.File]::ReadAllBytes($ExePath)
 # falls into this default branch, prints a debug string, and returns without
 # starting the remote client's countdown. Replace the default debug branch with
 # the same local countdown state used by classRoomNetMGR::RMPKRecv_GameStart.
-# Keep the existing start seed untouched. Earlier patch versions wrote
-# 0x006E0970=0, but that can mask peer/start-state problems and may contribute
-# to in-game desync.
+# SeedMode=Zero also initializes 0x006E0970 to 0. This is the current
+# diagnostic default because the guest may need a deterministic start seed to
+# pass the countdown/start-state checks. SeedMode=Preserve keeps the previous
+# seed value and only changes the battle state.
 $va = [uint32]0x0044D2E2
 $offset = Convert-VaToFileOffset $bytes $va
 $expected = [byte[]]@(
@@ -82,12 +85,19 @@ $seedZeroPatch = [byte[]]@(
 $current = New-Object byte[] $expected.Length
 [Array]::Copy($bytes, $offset, $current, 0, $current.Length)
 
-if (Test-BytesEqual $current $safePatch) {
-    Write-Host "Already patched: battle start sync default branch" -ForegroundColor Yellow
+$patch = if ($SeedMode -eq "Zero") { $seedZeroPatch } else { $safePatch }
+$modeText = if ($SeedMode -eq "Zero") { "seed-zero" } else { "seed-preserve" }
+
+if (Test-BytesEqual $current $patch) {
+    Write-Host "Already patched: battle start sync default branch ($modeText)" -ForegroundColor Yellow
     return
 }
 
-if (-not (Test-BytesEqual $current $expected) -and -not (Test-BytesEqual $current $seedZeroPatch)) {
+if (
+    -not (Test-BytesEqual $current $expected) -and
+    -not (Test-BytesEqual $current $safePatch) -and
+    -not (Test-BytesEqual $current $seedZeroPatch)
+) {
     $hex = ($current | ForEach-Object { "{0:X2}" -f $_ }) -join " "
     throw "Unexpected bytes at VA 0x$('{0:X8}' -f $va), file offset 0x$('{0:X}' -f $offset): $hex"
 }
@@ -95,8 +105,8 @@ if (-not (Test-BytesEqual $current $expected) -and -not (Test-BytesEqual $curren
 $backup = "$ExePath.bak_battlestartsync_$(Get-Date -Format yyyyMMdd_HHmmss)"
 [IO.File]::WriteAllBytes($backup, $bytes)
 
-[Array]::Copy($safePatch, 0, $bytes, $offset, $safePatch.Length)
+[Array]::Copy($patch, 0, $bytes, $offset, $patch.Length)
 [IO.File]::WriteAllBytes($ExePath, $bytes)
 
-Write-Host "Patched TNPacket_ReplyBattleReqReply default branch for remote game-start sync without changing start seed." -ForegroundColor Green
+Write-Host "Patched TNPacket_ReplyBattleReqReply default branch for remote game-start sync ($modeText)." -ForegroundColor Green
 Write-Host "Backup: $backup"

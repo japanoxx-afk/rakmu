@@ -5,11 +5,13 @@ param(
     [switch]$SkipNetworkPreference,
     [switch]$DisableVirtualAdapters,
     [switch]$SkipBattleStartSyncPatch,
-    [switch]$RestoreBattleStartSyncPatch
+    [switch]$RestoreBattleStartSyncPatch,
+    [ValidateSet("Zero", "Preserve")]
+    [string]$BattleStartSeedMode = "Zero"
 )
 
 $ErrorActionPreference = "Stop"
-$PatchBundleVersion = "2026-06-07.0300"
+$PatchBundleVersion = "2026-06-08.0010"
 
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -83,7 +85,7 @@ if ($RestoreBattleStartSyncPatch) {
     }
 } else {
     Invoke-Step "Battle start sync client patch" {
-        & (Join-Path $root "Patch-RhakMuBattleStartSync.ps1") -ExePath (Join-Path $GameDir "Rhakmu.exe")
+        & (Join-Path $root "Patch-RhakMuBattleStartSync.ps1") -ExePath (Join-Path $GameDir "Rhakmu.exe") -SeedMode $BattleStartSeedMode
     }
 }
 
@@ -103,6 +105,11 @@ Invoke-Step "Final patch verification" {
     $verifyArgs = @()
     if ($RestoreBattleStartSyncPatch -or $SkipBattleStartSyncPatch) {
         $verifyArgs += "-AllowOriginalBattleStartSync"
+        $verifyArgs += "-BattleStartSeedMode"
+        $verifyArgs += "Any"
+    } else {
+        $verifyArgs += "-BattleStartSeedMode"
+        $verifyArgs += $BattleStartSeedMode
     }
     & (Join-Path $root "Verify-RhakMuClientPatches.ps1") -ExePath (Join-Path $GameDir "Rhakmu.exe") @verifyArgs
 }
@@ -111,4 +118,5 @@ Write-Host ""
 Write-Host "RhakMu client setup completed. Run this same script on every PC before testing multiplayer." -ForegroundColor Green
 Write-Host "If room members are still removed after 10-20 seconds, rerun with -DisableVirtualAdapters on both PCs." -ForegroundColor Yellow
 Write-Host "For start-sync A/B testing, run with -RestoreBattleStartSyncPatch on both PCs, then compare with the normal install." -ForegroundColor Yellow
+Write-Host "Battle start seed mode: $BattleStartSeedMode" -ForegroundColor Cyan
 Write-Host "RhakMu patch bundle version: $PatchBundleVersion" -ForegroundColor Cyan
