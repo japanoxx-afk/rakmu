@@ -11,7 +11,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$PatchBundleVersion = "2026-06-08.0010"
+$PatchBundleVersion = "2026-06-08.0011"
 
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -63,9 +63,9 @@ if (-not $SkipFirewall) {
 
 if (-not $SkipNetworkPreference) {
     Invoke-Step "Radmin VPN network preference" {
-        $networkArgs = @()
+        $networkArgs = @{}
         if ($DisableVirtualAdapters) {
-            $networkArgs += "-DisableVirtualAdapters"
+            $networkArgs.DisableVirtualAdapters = $true
         }
         & (Join-Path $root "Set-RhakMuNetworkPreference.ps1") @networkArgs
     }
@@ -102,16 +102,16 @@ Invoke-Step "DirectDraw restore guard" {
 }
 
 Invoke-Step "Final patch verification" {
-    $verifyArgs = @()
-    if ($RestoreBattleStartSyncPatch -or $SkipBattleStartSyncPatch) {
-        $verifyArgs += "-AllowOriginalBattleStartSync"
-        $verifyArgs += "-BattleStartSeedMode"
-        $verifyArgs += "Any"
-    } else {
-        $verifyArgs += "-BattleStartSeedMode"
-        $verifyArgs += $BattleStartSeedMode
+    $verifyArgs = @{
+        ExePath = (Join-Path $GameDir "Rhakmu.exe")
     }
-    & (Join-Path $root "Verify-RhakMuClientPatches.ps1") -ExePath (Join-Path $GameDir "Rhakmu.exe") @verifyArgs
+    if ($RestoreBattleStartSyncPatch -or $SkipBattleStartSyncPatch) {
+        $verifyArgs.AllowOriginalBattleStartSync = $true
+        $verifyArgs.BattleStartSeedMode = "Any"
+    } else {
+        $verifyArgs.BattleStartSeedMode = $BattleStartSeedMode
+    }
+    & (Join-Path $root "Verify-RhakMuClientPatches.ps1") @verifyArgs
 }
 
 Write-Host ""
