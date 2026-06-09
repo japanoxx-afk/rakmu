@@ -41,7 +41,7 @@ function Test-BytesEqual([byte[]]$Bytes, [int]$Offset, [byte[]]$Expected) {
 if (-not (Test-Path -LiteralPath $ExePath)) { throw "File not found: $ExePath" }
 
 $bytes = [IO.File]::ReadAllBytes($ExePath)
-$va = [uint32]0x004248E4
+$va = [uint32]0x004248E5
 $offset = Convert-VaToFileOffset $bytes $va
 $expected = [byte[]]@(
     0x8B,0x0D,0x18,0x02,0x6E,0x00,
@@ -55,7 +55,7 @@ $patch = [byte[]]@(
     # mov ecx, [0x006E0218]
     0x8B,0x0D,0x18,0x02,0x6E,0x00,
     # test ecx, ecx; je 0x0042494E
-    0x85,0xC9,0x74,0x60,
+    0x85,0xC9,0x74,0x5F,
     # original path
     0x8B,0x51,0x14,
     0x8B,0x44,0x02,0x10,
