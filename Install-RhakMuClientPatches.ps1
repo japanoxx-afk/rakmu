@@ -13,7 +13,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$PatchBundleVersion = "2026-06-09.1915"
+$PatchBundleVersion = "2026-06-09.2345"
 
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -125,6 +125,14 @@ Invoke-Step "Post-game resolution-change crash guard" {
 
 Invoke-Step "Post-game result form crash guard" {
     & (Join-Path $root "Patch-RhakMuPostGameFormGuard.ps1") -ExePath (Join-Path $GameDir "Rhakmu.exe")
+}
+
+Invoke-Step "Pre-game resolution-change crash guard" {
+    & (Join-Path $root "Patch-RhakMuPreGameResolutionGuard.ps1") -ExePath (Join-Path $GameDir "Rhakmu.exe")
+}
+
+Invoke-Step "DrawMenuMouse null table guard" {
+    & (Join-Path $root "Patch-RhakMuDrawMenuMouseGuard.ps1") -ExePath (Join-Path $GameDir "Rhakmu.exe")
 }
 
 Invoke-Step "Final patch verification" {

@@ -154,10 +154,14 @@ Run this on both PCs before launching RhakMu:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Install-RhakMuClientPatches.ps1 -BattleStartSeedMode Zero
 ```
 
-As of patch bundle `2026-06-09.1915`, the installer also enables RoomNetMGR at
+As of patch bundle `2026-06-09.2345`, the installer also enables RoomNetMGR at
 room create/join and restores the original RMPK send paths. This is meant to
 allow the client to send the real DirectPlay/IPX room packets instead of only
 forcing local countdown state.
+
+The same bundle also guards the latest crash sites seen after both clients
+entered countdown: pre-game `ResolutionChange` during match entry and a null
+`DrawMenuMouse` form table after timeout/draw cleanup.
 
 If the game still reaches the room but the guest never starts, test the raw
 Radmin UDP path before launching RhakMu:

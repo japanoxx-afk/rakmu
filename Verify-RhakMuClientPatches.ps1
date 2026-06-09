@@ -160,6 +160,18 @@ $rmpkSendUserLeftOriginal = [byte[]]@(
 [void]$checks.Add((Test-ExactPatch $bytes 0x00445BFC $rmpkSendUserLeftOriginal "RMPKSend_UserLeft original send path"))
 [void]$checks.Add((Test-Nops $bytes 0x004230A6 30 "Post-game ResolutionChange guard"))
 [void]$checks.Add((Test-Nops $bytes 0x004230E0 40 "Post-game result form guard"))
+[void]$checks.Add((Test-Nops $bytes 0x00423028 30 "Pre-game ResolutionChange guard"))
+
+$drawMenuMouseGuardPatch = [byte[]]@(
+    0x8B,0x0D,0x18,0x02,0x6E,0x00,
+    0x85,0xC9,0x74,0x60,
+    0x8B,0x51,0x14,
+    0x8B,0x44,0x02,0x10,
+    0x50,
+    0x6A,0x00,
+    0x0F,0xBF,0x4D,0xE0
+)
+[void]$checks.Add((Test-ExactPatch $bytes 0x004248E4 $drawMenuMouseGuardPatch "DrawMenuMouse null table guard"))
 
 $checks | Format-Table -AutoSize
 
