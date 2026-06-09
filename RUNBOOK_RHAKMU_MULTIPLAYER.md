@@ -154,6 +154,35 @@ Run this on both PCs before launching RhakMu:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Install-RhakMuClientPatches.ps1 -BattleStartSeedMode Zero
 ```
 
+As of patch bundle `2026-06-09.1915`, the installer also enables RoomNetMGR at
+room create/join and restores the original RMPK send paths. This is meant to
+allow the client to send the real DirectPlay/IPX room packets instead of only
+forcing local countdown state.
+
+If the game still reaches the room but the guest never starts, test the raw
+Radmin UDP path before launching RhakMu:
+
+```powershell
+# Host PC
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Test-RhakMuP2P.ps1 -Mode listen
+
+# Guest PC
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Test-RhakMuP2P.ps1 -Mode send -TargetIp <host-radmin-ip>
+```
+
+If IPXWrapper has multiple enabled adapters, run this on both PCs and restart
+RhakMu:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Install-RhakMuClientPatches.ps1 -ConfigureIpxRadminOnly
+```
+
+For deeper DirectPlay/IPX capture during Start, run on both PCs:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Capture-RhakMuDP8.ps1 -PeerIp <other-pc-radmin-ip>
+```
+
 Then start the server PC with all known start variants:
 
 ```powershell

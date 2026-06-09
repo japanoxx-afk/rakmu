@@ -4,6 +4,8 @@ param(
     [switch]$SkipGitPull,
     [switch]$SkipNetworkPreference,
     [switch]$DisableVirtualAdapters,
+    [switch]$ConfigureIpxRadminOnly,
+    [switch]$RemoveCompatShim,
     [switch]$SkipBattleStartSyncPatch,
     [switch]$RestoreBattleStartSyncPatch,
     [ValidateSet("Zero", "Preserve")]
@@ -11,7 +13,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$PatchBundleVersion = "2026-06-08.0011"
+$PatchBundleVersion = "2026-06-09.1915"
 
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -71,6 +73,18 @@ if (-not $SkipNetworkPreference) {
     }
 }
 
+if ($ConfigureIpxRadminOnly) {
+    Invoke-Step "IPXWrapper Radmin-only adapter preference" {
+        & (Join-Path $root "Set-RhakMuIpxRadminOnly.ps1")
+    }
+}
+
+if ($RemoveCompatShim) {
+    Invoke-Step "Remove conflicting Windows compatibility shims" {
+        & (Join-Path $root "Remove-RhakMuCompatShim.ps1") -GameDir $GameDir
+    }
+}
+
 if ($RestoreBattleStartSyncPatch -and $SkipBattleStartSyncPatch) {
     throw "Use only one of -RestoreBattleStartSyncPatch or -SkipBattleStartSyncPatch."
 }
@@ -97,8 +111,20 @@ Invoke-Step "Panel menu guards" {
     & (Join-Path $root "Patch-RhakMuPanelMenuGuards.ps1") -ExePath (Join-Path $GameDir "Rhakmu.exe")
 }
 
+Invoke-Step "RoomNet setup and live RMPK sends" {
+    & (Join-Path $root "Patch-RhakMuEnableRoomNet.ps1") -ExePath (Join-Path $GameDir "Rhakmu.exe")
+}
+
 Invoke-Step "DirectDraw restore guard" {
     & (Join-Path $root "Patch-RhakMuIcarusRestoreGuard.ps1") -ExePath (Join-Path $GameDir "Rhakmu.exe")
+}
+
+Invoke-Step "Post-game resolution-change crash guard" {
+    & (Join-Path $root "Patch-RhakMuPostGameResolutionGuard.ps1") -ExePath (Join-Path $GameDir "Rhakmu.exe")
+}
+
+Invoke-Step "Post-game result form crash guard" {
+    & (Join-Path $root "Patch-RhakMuPostGameFormGuard.ps1") -ExePath (Join-Path $GameDir "Rhakmu.exe")
 }
 
 Invoke-Step "Final patch verification" {
@@ -118,5 +144,7 @@ Write-Host ""
 Write-Host "RhakMu client setup completed. Run this same script on every PC before testing multiplayer." -ForegroundColor Green
 Write-Host "If room members are still removed after 10-20 seconds, rerun with -DisableVirtualAdapters on both PCs." -ForegroundColor Yellow
 Write-Host "For start-sync A/B testing, run with -RestoreBattleStartSyncPatch on both PCs, then compare with the normal install." -ForegroundColor Yellow
+Write-Host "Optional network diagnostics: Test-RhakMuP2P.ps1 and Capture-RhakMuDP8.ps1 are available." -ForegroundColor Yellow
+Write-Host "Optional IPX setup: rerun with -ConfigureIpxRadminOnly if DirectPlay/IPX still uses the wrong adapter." -ForegroundColor Yellow
 Write-Host "Battle start seed mode: $BattleStartSeedMode" -ForegroundColor Cyan
 Write-Host "RhakMu patch bundle version: $PatchBundleVersion" -ForegroundColor Cyan
